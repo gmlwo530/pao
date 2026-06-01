@@ -34,6 +34,10 @@ The first development line is `v0`. PAO uses Semantic Versioning with `vX.Y.Z` G
 
 See [docs/versioning.md](docs/versioning.md) for the versioning and release rules.
 
+## License
+
+PAO is distributed under the [MIT License](LICENSE).
+
 ## Current Status
 
 This repository is in the initial design stage. There is no installable package, Rust project skeleton, or working CLI/TUI implementation yet.

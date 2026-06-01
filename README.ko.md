@@ -34,6 +34,10 @@ pao client set-default <name>
 
 자세한 규칙은 [docs/versioning.md](docs/versioning.md)를 따릅니다.
 
+## 라이선스
+
+PAO는 [MIT License](LICENSE)로 배포됩니다.
+
 ## 현재 상태
 
 이 저장소는 초기 설계 단계입니다. 아직 설치 가능한 패키지, Rust 프로젝트 골격, 실제 CLI/TUI 구현은 없습니다.
