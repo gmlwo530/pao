@@ -19,6 +19,14 @@
 - Include risk notes or follow-up work in the body when relevant.
 - Do not include secrets, private repository names, internal URLs, or private infrastructure details in commit messages.
 
+## Branch and PR Rules
+
+- Follow `docs/versioning.md` for branch, pull request, release branch, and milestone rules.
+- Do not commit directly to `main`; use a branch and pull request.
+- Use draft PRs until the change is ready for review or merge.
+- Use squash merge and delete merged branches.
+- Keep release preparation branches limited to release preparation work.
+
 ## Project Direction
 
 - PAO is a macOS-first terminal AI coding agent.
