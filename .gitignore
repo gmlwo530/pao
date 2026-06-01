@@ -1,0 +1,6 @@
+target/
+.pao/
+.codex/
+.env
+.env.*
+!.env.example
