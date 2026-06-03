@@ -1,6 +1,8 @@
 pub mod ai_client;
+pub mod approval;
 pub mod cli;
 pub mod command;
+pub mod command_log;
 pub mod config;
 pub mod error;
 pub mod git;
