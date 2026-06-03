@@ -24,7 +24,7 @@ pao repo status
 pao sync
 pao task create <task-id>
 pao
-pao chat --repo <name>
+pao chat --repo <name> --prompt <prompt>
 pao client add <name> --command <command>
 pao client list
 pao client set-default <name>
@@ -55,6 +55,7 @@ pao repo list
 pao repo status
 pao sync
 pao task create <task-id>
+pao chat --repo <name> --prompt <prompt>
 pao client add <name> --command <command>
 pao client list
 pao client set-default <name>
