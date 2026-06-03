@@ -18,6 +18,7 @@ PAO는 여러 프로젝트에서 로컬 AI coding CLI들을 지휘하고, 각 CL
 ```bash
 pao init
 pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync
@@ -40,4 +41,22 @@ PAO는 [MIT License](LICENSE)로 배포됩니다.
 
 ## 현재 상태
 
-이 저장소는 초기 설계 단계입니다. 아직 설치 가능한 패키지, Rust 프로젝트 골격, 실제 CLI/TUI 구현은 없습니다.
+이 저장소에는 v0.1.0 개발 릴리즈를 위한 초기 Rust CLI 골격이 있습니다.
+
+구현된 명령 표면:
+
+```bash
+pao --version
+pao init
+pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
+pao repo list
+pao repo status
+pao sync
+pao client add <name> --command <command>
+pao client list
+pao client set-default <name>
+pao doctor
+```
+
+기본 `pao` TUI 진입점과 `pao chat` AI client 실행 경로는 후속 v0 작업으로 추적합니다.

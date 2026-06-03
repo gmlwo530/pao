@@ -18,6 +18,7 @@ PAO orchestrates local AI coding CLIs across multiple projects and keeps their c
 ```bash
 pao init
 pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync
@@ -40,4 +41,22 @@ PAO is distributed under the [MIT License](LICENSE).
 
 ## Current Status
 
-This repository is in the initial design stage. There is no installable package, Rust project skeleton, or working CLI/TUI implementation yet.
+This repository has an initial Rust CLI skeleton for the v0.1.0 development release.
+
+Implemented command surface:
+
+```bash
+pao --version
+pao init
+pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
+pao repo list
+pao repo status
+pao sync
+pao client add <name> --command <command>
+pao client list
+pao client set-default <name>
+pao doctor
+```
+
+The default `pao` TUI entrypoint and `pao chat` AI client execution path are tracked as follow-up v0 work.
