@@ -5,6 +5,7 @@ pub mod cli;
 pub mod command;
 pub mod command_log;
 pub mod config;
+pub mod doctor;
 pub mod error;
 pub mod git;
 pub mod task;

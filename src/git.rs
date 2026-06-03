@@ -279,7 +279,8 @@ mod tests {
     use std::fs;
     use std::process::Command;
 
-    use super::{repository_status, RepoState};
+    use super::{clone_repository, repository_status, RepoState};
+    use crate::error::ErrorCode;
     use crate::test_support::TempDir;
 
     #[test]
@@ -302,6 +303,23 @@ mod tests {
         assert_eq!(status.state, RepoState::Dirty);
         assert_eq!(status.unstaged, 1);
         assert_eq!(status.untracked, 1);
+    }
+
+    #[test]
+    fn clone_failure_maps_to_stable_git_error_code() {
+        let temp_dir = TempDir::new("pao-git-clone-failure");
+        let checkout_path = temp_dir.path().join("checkout");
+        let missing_remote = temp_dir.path().join("missing-remote");
+
+        let error = clone_repository(
+            missing_remote.to_str().expect("path should be utf-8"),
+            "main",
+            &checkout_path,
+        )
+        .expect_err("clone should fail");
+
+        assert_eq!(error.code(), ErrorCode::GitCommandFailed);
+        assert!(error.message().contains("git clone failed"));
     }
 
     fn run_git(path: &std::path::Path, args: &[&str]) {

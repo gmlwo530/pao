@@ -5,13 +5,13 @@ use crate::ai_client::{validate_client_command, AiClientRunRequest};
 use crate::approval::ai_client_approval_payload;
 use crate::change::repo_snapshot;
 use crate::cli::{ChatArgs, Cli, ClientCommand, Commands, RepoCommand, TaskCommand};
-use crate::config::{config_path, UserConfig};
+use crate::config::UserConfig;
+use crate::doctor::doctor_report;
 use crate::error::{ErrorCode, PaoError};
-use crate::git::{clone_repository, command_version, fetch_repository, repository_status};
+use crate::git::{clone_repository, fetch_repository, repository_status};
 use crate::task::create_task;
 use crate::workspace::Workspace;
 use crate::RuntimeEnv;
-use crate::VERSION;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommandReport {
@@ -297,21 +297,7 @@ fn unix_nanos() -> Result<u128, PaoError> {
 }
 
 fn doctor(runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
-    let workspace_status = if runtime.cwd.join(".pao/workspace.yaml").exists() {
-        "found"
-    } else {
-        "missing"
-    };
-    let config_path = config_path(runtime)?;
-    let git_status = command_version("git").unwrap_or_else(|| "missing".to_string());
-    let rg_status = command_version("rg").unwrap_or_else(|| "missing".to_string());
-
-    let output = format!(
-        "pao doctor\nversion: {VERSION}\nworkspace: {workspace_status}\nconfig: {}\ngit: {git_status}\nrg: {rg_status}\n",
-        config_path.display()
-    );
-
-    Ok(CommandReport::stdout(output))
+    Ok(CommandReport::stdout(doctor_report(runtime)))
 }
 
 #[cfg(test)]

@@ -30,6 +30,41 @@ pao client list
 pao client set-default <name>
 ```
 
+## Installation
+
+The v0.1.0 development build is installed from a local checkout:
+
+```bash
+cargo install --path .
+```
+
+## Basic Usage
+
+```bash
+pao init
+pao repo add app --remote <git-url> --branch main
+pao client add codex --command codex
+pao chat --repo app --prompt "make a small change"
+pao doctor
+```
+
+`pao chat` prepares baseline and approval artifacts under `.pao/sessions/<session-id>/` before AI client execution.
+
+## Verification
+
+Run these commands before opening or updating a non-trivial PR:
+
+```bash
+cargo fmt --check
+cargo check
+cargo test
+cargo clippy --all-targets -- -D warnings
+```
+
+## Error Codes
+
+PAO prints stable error codes with human-readable messages. See [docs/error-codes.md](docs/error-codes.md).
+
 ## Versioning
 
 The first development line is `v0`. PAO uses Semantic Versioning with `vX.Y.Z` Git tags and tracks release scope with GitHub milestones.

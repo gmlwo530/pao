@@ -242,3 +242,65 @@ fn client_add_rejects_shell_control_operator_commands() {
     let _ = fs::remove_dir_all(workspace_dir);
     let _ = fs::remove_dir_all(config_dir);
 }
+
+#[test]
+fn doctor_reports_workspace_config_repo_and_client_diagnostics() {
+    let workspace_dir = temp_dir("pao-cli-doctor-workspace");
+    let config_dir = temp_dir("pao-cli-doctor-config");
+    let remote_dir = create_bare_git_repo("pao-cli-doctor-remote");
+
+    let init = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .arg("init")
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao init should run");
+
+    assert!(init.status.success());
+
+    let add = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args([
+            "repo",
+            "add",
+            "app",
+            "--remote",
+            remote_dir.to_str().expect("path should be utf-8"),
+            "--branch",
+            "main",
+        ])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao repo add should run");
+
+    assert!(add.status.success());
+
+    let client = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args(["client", "add", "git", "--command", "git"])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao client add should run");
+
+    assert!(client.status.success());
+
+    let doctor = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .arg("doctor")
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao doctor should run");
+    let stdout = String::from_utf8_lossy(&doctor.stdout);
+
+    assert!(doctor.status.success());
+    assert!(stdout.contains("CHECK\tSTATUS\tDETAIL"));
+    assert!(stdout.contains("git\tok\tgit version"));
+    assert!(stdout.contains("workspace\tok\t"));
+    assert!(stdout.contains("repo.app\tok\tclean"));
+    assert!(stdout.contains("config\tok\t"));
+    assert!(stdout.contains("client.git\tok\tprogram=git"));
+
+    let _ = fs::remove_dir_all(workspace_dir);
+    let _ = fs::remove_dir_all(config_dir);
+    let _ = fs::remove_dir_all(remote_dir);
+}
