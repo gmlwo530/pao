@@ -33,6 +33,8 @@ pub enum Commands {
 pub enum RepoCommand {
     /// Register a repository in the current workspace.
     Add(RepoAddArgs),
+    /// Remove a repository from the current workspace.
+    Remove(RepoRemoveArgs),
     /// List registered repositories.
     List,
     /// Show status for registered repositories.
@@ -46,6 +48,13 @@ pub struct RepoAddArgs {
     pub remote: String,
     #[arg(long)]
     pub branch: String,
+}
+
+#[derive(Debug, Args)]
+pub struct RepoRemoveArgs {
+    pub name: String,
+    #[arg(long, required = true)]
+    pub keep_checkout: bool,
 }
 
 #[derive(Debug, Args)]

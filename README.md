@@ -18,6 +18,7 @@ PAO orchestrates local AI coding CLIs across multiple projects and keeps their c
 ```bash
 pao init
 pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync
@@ -48,6 +49,7 @@ Implemented command surface:
 pao --version
 pao init
 pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync

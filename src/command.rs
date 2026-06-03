@@ -1,7 +1,7 @@
 use crate::cli::{ChatArgs, Cli, ClientCommand, Commands, RepoCommand};
 use crate::config::{config_path, UserConfig};
 use crate::error::{ErrorCode, PaoError};
-use crate::git::{command_version, repository_status};
+use crate::git::{clone_repository, command_version, fetch_repository, repository_status};
 use crate::workspace::Workspace;
 use crate::RuntimeEnv;
 use crate::VERSION;
@@ -46,11 +46,26 @@ fn repo(command: RepoCommand, runtime: &RuntimeEnv) -> Result<CommandReport, Pao
     match command {
         RepoCommand::Add(args) => {
             let mut workspace = Workspace::load(&runtime.cwd)?;
+            workspace.validate_new_repo(&args.name, &args.remote, &args.branch)?;
+            let checkout_path = workspace.repo_checkout_path_for_name(&args.name);
+
+            clone_repository(&args.remote, &args.branch, &checkout_path)?;
             workspace.add_repo(&args.name, &args.remote, &args.branch)?;
 
             Ok(CommandReport::stdout(format!(
-                "Registered repository `{}` on branch `{}`\n",
-                args.name, args.branch
+                "Registered repository `{}` on branch `{}` at {}\n",
+                args.name,
+                args.branch,
+                checkout_path.display()
+            )))
+        }
+        RepoCommand::Remove(args) => {
+            let mut workspace = Workspace::load(&runtime.cwd)?;
+            let removed = workspace.remove_repo(&args.name, args.keep_checkout)?;
+
+            Ok(CommandReport::stdout(format!(
+                "Removed repository `{}` from workspace and kept checkout at {}\n",
+                args.name, removed.path
             )))
         }
         RepoCommand::List => {
@@ -73,19 +88,21 @@ fn repo(command: RepoCommand, runtime: &RuntimeEnv) -> Result<CommandReport, Pao
         }
         RepoCommand::Status(args) => {
             let workspace = Workspace::load(&runtime.cwd)?;
-            let mut output = String::from("NAME\tSTATUS\tPATH\n");
+            let mut output = String::from(
+                "NAME\tSTATE\tBRANCH\tUPSTREAM\tSTAGED\tUNSTAGED\tUNTRACKED\tCONFLICTS\tPATH\n",
+            );
 
             if let Some(name) = args.name {
                 let repo = workspace.repo(&name)?;
                 let status = repository_status(&workspace.repo_checkout_path(repo));
-                output.push_str(&format!("{}\t{}\t{}\n", name, status.as_str(), repo.path));
+                output.push_str(&format_repo_status(&name, repo.path.as_str(), &status));
 
                 return Ok(CommandReport::stdout(output));
             }
 
             for (name, repo) in &workspace.file.repos {
                 let status = repository_status(&workspace.repo_checkout_path(repo));
-                output.push_str(&format!("{}\t{}\t{}\n", name, status.as_str(), repo.path));
+                output.push_str(&format_repo_status(name, repo.path.as_str(), &status));
             }
 
             Ok(CommandReport::stdout(output))
@@ -95,11 +112,27 @@ fn repo(command: RepoCommand, runtime: &RuntimeEnv) -> Result<CommandReport, Pao
 
 fn sync(runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
     let workspace = Workspace::load(&runtime.cwd)?;
+    let mut output = String::from(
+        "NAME\tSYNC\tSTATE\tBRANCH\tUPSTREAM\tSTAGED\tUNSTAGED\tUNTRACKED\tCONFLICTS\tPATH\n",
+    );
 
-    Ok(CommandReport::stdout(format!(
-        "Workspace metadata is current. repositories={}\n",
-        workspace.file.repos.len()
-    )))
+    if workspace.file.repos.is_empty() {
+        return Ok(CommandReport::stdout("No repositories registered.\n"));
+    }
+
+    for (name, repo) in &workspace.file.repos {
+        let checkout_path = workspace.repo_checkout_path(repo);
+        let sync_state = fetch_repository(&checkout_path);
+        let status = repository_status(&checkout_path);
+        output.push_str(&format!(
+            "{}\t{}\t{}",
+            name,
+            sync_state.as_str(),
+            format_repo_status_fields(repo.path.as_str(), &status)
+        ));
+    }
+
+    Ok(CommandReport::stdout(output))
 }
 
 fn chat(args: ChatArgs, runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
@@ -113,6 +146,24 @@ fn chat(args: ChatArgs, runtime: &RuntimeEnv) -> Result<CommandReport, PaoError>
         ErrorCode::NotImplemented,
         "AI client execution is not implemented in this CLI skeleton",
     ))
+}
+
+fn format_repo_status(name: &str, path: &str, status: &crate::git::RepositoryStatus) -> String {
+    format!("{}\t{}", name, format_repo_status_fields(path, status))
+}
+
+fn format_repo_status_fields(path: &str, status: &crate::git::RepositoryStatus) -> String {
+    format!(
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+        status.state.as_str(),
+        status.branch_display(),
+        status.upstream_display(),
+        status.staged,
+        status.unstaged,
+        status.untracked,
+        status.conflicts,
+        path
+    )
 }
 
 fn client(command: ClientCommand, runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
@@ -201,6 +252,8 @@ mod tests {
         run_with_env(args(&["pao", "init"]), &runtime)
             .await
             .expect("workspace should initialize");
+        let remote_dir = crate::test_support::create_bare_git_repo("pao-command-remote");
+
         run_with_env(
             args(&[
                 "pao",
@@ -208,7 +261,7 @@ mod tests {
                 "add",
                 "app",
                 "--remote",
-                "https://example.com/app.git",
+                remote_dir.path().to_str().expect("path should be utf-8"),
                 "--branch",
                 "main",
             ]),

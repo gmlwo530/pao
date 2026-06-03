@@ -18,6 +18,7 @@ PAO는 여러 프로젝트에서 로컬 AI coding CLI들을 지휘하고, 각 CL
 ```bash
 pao init
 pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync
@@ -48,6 +49,7 @@ PAO는 [MIT License](LICENSE)로 배포됩니다.
 pao --version
 pao init
 pao repo add <name> --remote <git-url> --branch <branch>
+pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync

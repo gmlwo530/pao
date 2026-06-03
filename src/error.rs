@@ -11,6 +11,8 @@ pub enum ErrorCode {
     RepositoryInvalid,
     RepositoryExists,
     RepositoryMissing,
+    RepositoryCheckoutExists,
+    GitCommandFailed,
     ConfigInvalid,
     ClientInvalid,
     ClientMissing,
@@ -29,6 +31,8 @@ impl ErrorCode {
             Self::RepositoryInvalid => "PAO-1101",
             Self::RepositoryExists => "PAO-1102",
             Self::RepositoryMissing => "PAO-1103",
+            Self::RepositoryCheckoutExists => "PAO-1104",
+            Self::GitCommandFailed => "PAO-1105",
             Self::ConfigInvalid => "PAO-1201",
             Self::ClientInvalid => "PAO-1202",
             Self::ClientMissing => "PAO-1203",
@@ -47,10 +51,11 @@ impl ErrorCode {
             | Self::RepositoryInvalid
             | Self::RepositoryExists
             | Self::RepositoryMissing
+            | Self::RepositoryCheckoutExists
             | Self::ConfigInvalid
             | Self::ClientInvalid
             | Self::ClientMissing => 2,
-            Self::Io | Self::Serialization => 1,
+            Self::GitCommandFailed | Self::Io | Self::Serialization => 1,
         }
     }
 }

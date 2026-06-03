@@ -14,6 +14,52 @@ fn temp_dir(prefix: &str) -> PathBuf {
     path
 }
 
+fn create_bare_git_repo(prefix: &str) -> PathBuf {
+    let seed_dir = temp_dir(&format!("{prefix}-seed"));
+    let remote_dir = temp_dir(&format!("{prefix}-remote"));
+
+    run_git(&seed_dir, &["init"]);
+    run_git(&seed_dir, &["config", "user.email", "pao@example.invalid"]);
+    run_git(&seed_dir, &["config", "user.name", "PAO Test"]);
+    fs::write(seed_dir.join("README.md"), "# test\n").expect("seed file should be written");
+    run_git(&seed_dir, &["add", "README.md"]);
+    run_git(&seed_dir, &["commit", "-m", "initial"]);
+    run_git(&seed_dir, &["branch", "-M", "main"]);
+
+    let output = Command::new("git")
+        .arg("clone")
+        .arg("--bare")
+        .arg(&seed_dir)
+        .arg(&remote_dir)
+        .output()
+        .expect("git clone --bare should run");
+
+    assert!(
+        output.status.success(),
+        "git clone --bare failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let _ = fs::remove_dir_all(seed_dir);
+
+    remote_dir
+}
+
+fn run_git(path: &std::path::Path, args: &[&str]) {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(args)
+        .output()
+        .expect("git should run");
+
+    assert!(
+        output.status.success(),
+        "git command failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 #[test]
 fn version_output_matches_package_version() {
     let output = Command::new(env!("CARGO_BIN_EXE_pao"))
@@ -32,6 +78,7 @@ fn version_output_matches_package_version() {
 fn workspace_commands_create_and_list_repositories() {
     let workspace_dir = temp_dir("pao-cli-workspace");
     let config_dir = temp_dir("pao-cli-config");
+    let remote_dir = create_bare_git_repo("pao-cli-remote");
 
     let init = Command::new(env!("CARGO_BIN_EXE_pao"))
         .arg("init")
@@ -49,7 +96,7 @@ fn workspace_commands_create_and_list_repositories() {
             "add",
             "app",
             "--remote",
-            "https://example.com/app.git",
+            remote_dir.to_str().expect("path should be utf-8"),
             "--branch",
             "main",
         ])
@@ -59,6 +106,7 @@ fn workspace_commands_create_and_list_repositories() {
         .expect("pao repo add should run");
 
     assert!(add.status.success());
+    assert!(workspace_dir.join("repos/app/.git").exists());
 
     let list = Command::new(env!("CARGO_BIN_EXE_pao"))
         .args(["repo", "list"])
@@ -70,8 +118,45 @@ fn workspace_commands_create_and_list_repositories() {
     assert!(list.status.success());
     assert!(String::from_utf8_lossy(&list.stdout).contains("app"));
 
+    fs::write(workspace_dir.join("repos/app/untracked.txt"), "new\n")
+        .expect("untracked file should be written");
+
+    let status = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args(["repo", "status", "app"])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao repo status should run");
+
+    let status_stdout = String::from_utf8_lossy(&status.stdout);
+
+    assert!(status.status.success());
+    assert!(status_stdout.contains("dirty"));
+    assert!(status_stdout.contains("\t1\t0\t"));
+
+    let sync = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .arg("sync")
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao sync should run");
+
+    assert!(sync.status.success());
+    assert!(String::from_utf8_lossy(&sync.stdout).contains("fetched"));
+
+    let remove = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args(["repo", "remove", "app", "--keep-checkout"])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao repo remove should run");
+
+    assert!(remove.status.success());
+    assert!(workspace_dir.join("repos/app/.git").exists());
+
     let _ = fs::remove_dir_all(workspace_dir);
     let _ = fs::remove_dir_all(config_dir);
+    let _ = fs::remove_dir_all(remote_dir);
 }
 
 #[test]
