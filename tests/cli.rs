@@ -144,16 +144,6 @@ fn workspace_commands_create_and_list_repositories() {
     assert!(sync.status.success());
     assert!(String::from_utf8_lossy(&sync.stdout).contains("fetched"));
 
-    let remove = Command::new(env!("CARGO_BIN_EXE_pao"))
-        .args(["repo", "remove", "app", "--keep-checkout"])
-        .current_dir(&workspace_dir)
-        .env("PAO_CONFIG_HOME", &config_dir)
-        .output()
-        .expect("pao repo remove should run");
-
-    assert!(remove.status.success());
-    assert!(workspace_dir.join("repos/app/.git").exists());
-
     let task = Command::new(env!("CARGO_BIN_EXE_pao"))
         .args(["task", "create", "release-0.1"])
         .current_dir(&workspace_dir)
@@ -171,6 +161,38 @@ fn workspace_commands_create_and_list_repositories() {
     assert!(workspace_dir
         .join(".pao/tasks/release-0.1/command-log")
         .exists());
+
+    let client = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args(["client", "add", "codex", "--command", "codex"])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao client add should run");
+
+    assert!(client.status.success());
+
+    let chat = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args(["chat", "--repo", "app", "--prompt", "make a small change"])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao chat should run");
+
+    let chat_stdout = String::from_utf8_lossy(&chat.stdout);
+
+    assert!(chat.status.success());
+    assert!(chat_stdout.contains("Approval required"));
+    assert!(chat_stdout.contains("approval:"));
+
+    let remove = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args(["repo", "remove", "app", "--keep-checkout"])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao repo remove should run");
+
+    assert!(remove.status.success());
+    assert!(workspace_dir.join("repos/app/.git").exists());
 
     let _ = fs::remove_dir_all(workspace_dir);
     let _ = fs::remove_dir_all(config_dir);

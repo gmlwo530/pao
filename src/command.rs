@@ -1,3 +1,9 @@
+use std::fs;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use crate::ai_client::{validate_client_command, AiClientRunRequest};
+use crate::approval::ai_client_approval_payload;
+use crate::change::repo_snapshot;
 use crate::cli::{ChatArgs, Cli, ClientCommand, Commands, RepoCommand, TaskCommand};
 use crate::config::{config_path, UserConfig};
 use crate::error::{ErrorCode, PaoError};
@@ -153,15 +159,58 @@ fn task(command: TaskCommand, runtime: &RuntimeEnv) -> Result<CommandReport, Pao
 
 fn chat(args: ChatArgs, runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
     let workspace = Workspace::load(&runtime.cwd)?;
+    let config = UserConfig::load(runtime)?;
+    let repo_name = args.repo.ok_or_else(|| {
+        PaoError::new(
+            ErrorCode::RepositoryMissing,
+            "chat requires a target repository via --repo",
+        )
+    })?;
+    let repo = workspace.repo(&repo_name)?;
+    let client_name = config.file.default_client.as_ref().ok_or_else(|| {
+        PaoError::new(
+            ErrorCode::ClientMissing,
+            "configure a default client before running chat",
+        )
+    })?;
+    let client = config.file.clients.get(client_name).ok_or_else(|| {
+        PaoError::new(
+            ErrorCode::ClientMissing,
+            format!("client `{client_name}` is not registered"),
+        )
+    })?;
 
-    if let Some(repo_name) = &args.repo {
-        workspace.repo(repo_name)?;
-    }
+    let command = validate_client_command(&client.command)?;
+    let repo_path = workspace.repo_checkout_path(repo);
+    let baseline = repo_snapshot(&repo_path)?;
+    let request = AiClientRunRequest {
+        client_name: client_name.clone(),
+        command,
+        cwd: repo_path,
+        prompt: args.prompt,
+        timeout: Duration::from_secs(args.timeout_seconds),
+    };
+    let approval = ai_client_approval_payload(
+        &request,
+        Some(repo_name.clone()),
+        "AI client may modify files in the target repository",
+        baseline_state_summary(&baseline),
+    );
+    let session_id = format!("session-{}", unix_nanos()?);
+    let session_dir = workspace.pao_dir().join("sessions").join(&session_id);
 
-    Err(PaoError::new(
-        ErrorCode::NotImplemented,
-        "AI client execution is not implemented in this CLI skeleton",
-    ))
+    fs::create_dir_all(&session_dir).map_err(PaoError::io)?;
+    write_yaml(session_dir.join("baseline.yaml"), &baseline)?;
+    write_yaml(session_dir.join("approval.yaml"), &approval)?;
+
+    Ok(CommandReport::stdout(format!(
+        "Approval required for `{}` using client `{}`.\nsession: {}\nbaseline_files: {}\napproval: {}\n",
+        repo_name,
+        client_name,
+        session_id,
+        baseline.files.len(),
+        session_dir.join("approval.yaml").display()
+    )))
 }
 
 fn format_repo_status(name: &str, path: &str, status: &crate::git::RepositoryStatus) -> String {
@@ -223,6 +272,28 @@ fn client(command: ClientCommand, runtime: &RuntimeEnv) -> Result<CommandReport,
             )))
         }
     }
+}
+
+fn baseline_state_summary(snapshot: &crate::change::RepoSnapshot) -> String {
+    if snapshot.files.is_empty() {
+        return "clean".to_string();
+    }
+
+    format!("dirty files={}", snapshot.files.len())
+}
+
+fn write_yaml<T: serde::Serialize>(path: std::path::PathBuf, value: &T) -> Result<(), PaoError> {
+    let content = serde_yaml::to_string(value).map_err(PaoError::serialization)?;
+
+    fs::write(path, content).map_err(PaoError::io)
+}
+
+fn unix_nanos() -> Result<u128, PaoError> {
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| PaoError::new(ErrorCode::Io, error.to_string()))?;
+
+    Ok(duration.as_nanos())
 }
 
 fn doctor(runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
@@ -340,5 +411,58 @@ mod tests {
             .path()
             .join(".pao/tasks/release-0.1/task.yaml")
             .exists());
+    }
+
+    #[tokio::test]
+    async fn chat_creates_baseline_and_approval_artifacts() {
+        let temp_dir = TempDir::new("pao-command-chat");
+        let runtime = RuntimeEnv {
+            cwd: temp_dir.path().to_path_buf(),
+            home: None,
+            config_home: Some(temp_dir.path().join("config")),
+        };
+        let remote_dir = crate::test_support::create_bare_git_repo("pao-command-chat-remote");
+
+        run_with_env(args(&["pao", "init"]), &runtime)
+            .await
+            .expect("workspace should initialize");
+        run_with_env(
+            args(&[
+                "pao",
+                "repo",
+                "add",
+                "app",
+                "--remote",
+                remote_dir.path().to_str().expect("path should be utf-8"),
+                "--branch",
+                "main",
+            ]),
+            &runtime,
+        )
+        .await
+        .expect("repo should be added");
+        run_with_env(
+            args(&["pao", "client", "add", "codex", "--command", "codex"]),
+            &runtime,
+        )
+        .await
+        .expect("client should be added");
+
+        let report = run_with_env(
+            args(&[
+                "pao",
+                "chat",
+                "--repo",
+                "app",
+                "--prompt",
+                "make a small change",
+            ]),
+            &runtime,
+        )
+        .await
+        .expect("chat should prepare approval");
+
+        assert!(report.stdout.contains("Approval required"));
+        assert!(temp_dir.path().join(".pao/sessions").exists());
     }
 }

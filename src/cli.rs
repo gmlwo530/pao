@@ -84,6 +84,10 @@ pub struct ChatArgs {
     pub repo: Option<String>,
     #[arg(long)]
     pub task: Option<String>,
+    #[arg(long)]
+    pub prompt: String,
+    #[arg(long, default_value_t = 300)]
+    pub timeout_seconds: u64,
 }
 
 #[derive(Debug, Subcommand)]
