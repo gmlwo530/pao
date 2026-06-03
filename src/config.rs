@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::ai_client::validate_client_command;
 use crate::error::{ErrorCode, PaoError};
 use crate::validation::validate_name;
 use crate::RuntimeEnv;
@@ -60,13 +61,7 @@ impl UserConfig {
 
     pub fn add_client(&mut self, name: &str, command: &str) -> Result<(), PaoError> {
         validate_name("client", name, ErrorCode::ClientInvalid)?;
-
-        if command.trim().is_empty() {
-            return Err(PaoError::new(
-                ErrorCode::ClientInvalid,
-                "client command cannot be empty",
-            ));
-        }
+        validate_client_command(command)?;
 
         self.file.clients.insert(
             name.to_string(),
@@ -146,5 +141,20 @@ mod tests {
 
         assert_eq!(loaded.file.default_client.as_deref(), Some("codex"));
         assert_eq!(loaded.file.clients["codex"].command, "codex");
+    }
+
+    #[test]
+    fn client_add_rejects_shell_control_operators() {
+        let temp_dir = TempDir::new("pao-config-client-invalid");
+        let runtime = RuntimeEnv {
+            cwd: PathBuf::from("/workspace"),
+            home: None,
+            config_home: Some(temp_dir.path().to_path_buf()),
+        };
+
+        let mut config = UserConfig::load(&runtime).expect("config should load");
+        let result = config.add_client("unsafe", "codex && rm -rf target");
+
+        assert!(result.is_err());
     }
 }
