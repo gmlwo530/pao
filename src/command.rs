@@ -1,7 +1,8 @@
-use crate::cli::{ChatArgs, Cli, ClientCommand, Commands, RepoCommand};
+use crate::cli::{ChatArgs, Cli, ClientCommand, Commands, RepoCommand, TaskCommand};
 use crate::config::{config_path, UserConfig};
 use crate::error::{ErrorCode, PaoError};
 use crate::git::{clone_repository, command_version, fetch_repository, repository_status};
+use crate::task::create_task;
 use crate::workspace::Workspace;
 use crate::RuntimeEnv;
 use crate::VERSION;
@@ -24,6 +25,7 @@ pub async fn execute(cli: Cli, runtime: &RuntimeEnv) -> Result<CommandReport, Pa
         Some(Commands::Init) => init(runtime),
         Some(Commands::Repo { command }) => repo(command, runtime),
         Some(Commands::Sync) => sync(runtime),
+        Some(Commands::Task { command }) => task(command, runtime),
         Some(Commands::Chat(args)) => chat(args, runtime),
         Some(Commands::Client { command }) => client(command, runtime),
         Some(Commands::Doctor) => doctor(runtime),
@@ -133,6 +135,20 @@ fn sync(runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
     }
 
     Ok(CommandReport::stdout(output))
+}
+
+fn task(command: TaskCommand, runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
+    match command {
+        TaskCommand::Create(args) => {
+            let workspace = Workspace::load(&runtime.cwd)?;
+            let task = create_task(&workspace, &args.task_id)?;
+
+            Ok(CommandReport::stdout(format!(
+                "Created task `{}` with sessions at {} and command log at {}\n",
+                task.id, task.sessions_path, task.command_log_path
+            )))
+        }
+    }
 }
 
 fn chat(args: ChatArgs, runtime: &RuntimeEnv) -> Result<CommandReport, PaoError> {
@@ -300,5 +316,29 @@ mod tests {
 
         assert!(report.stdout.contains("codex"));
         assert!(report.stdout.contains("yes"));
+    }
+
+    #[tokio::test]
+    async fn task_create_stores_task_metadata() {
+        let temp_dir = TempDir::new("pao-command-task");
+        let runtime = RuntimeEnv {
+            cwd: temp_dir.path().to_path_buf(),
+            home: None,
+            config_home: Some(temp_dir.path().join("config")),
+        };
+
+        run_with_env(args(&["pao", "init"]), &runtime)
+            .await
+            .expect("workspace should initialize");
+
+        let report = run_with_env(args(&["pao", "task", "create", "release-0.1"]), &runtime)
+            .await
+            .expect("task should be created");
+
+        assert!(report.stdout.contains("release-0.1"));
+        assert!(temp_dir
+            .path()
+            .join(".pao/tasks/release-0.1/task.yaml")
+            .exists());
     }
 }

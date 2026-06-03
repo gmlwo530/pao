@@ -22,6 +22,7 @@ pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync
+pao task create <task-id>
 pao
 pao chat --repo <name>
 pao client add <name> --command <command>
@@ -53,6 +54,7 @@ pao repo remove <name> --keep-checkout
 pao repo list
 pao repo status
 pao sync
+pao task create <task-id>
 pao client add <name> --command <command>
 pao client list
 pao client set-default <name>

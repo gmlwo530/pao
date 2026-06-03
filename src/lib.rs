@@ -3,6 +3,7 @@ pub mod command;
 pub mod config;
 pub mod error;
 pub mod git;
+pub mod task;
 pub mod validation;
 pub mod workspace;
 

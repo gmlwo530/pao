@@ -154,6 +154,24 @@ fn workspace_commands_create_and_list_repositories() {
     assert!(remove.status.success());
     assert!(workspace_dir.join("repos/app/.git").exists());
 
+    let task = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args(["task", "create", "release-0.1"])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao task create should run");
+
+    assert!(task.status.success());
+    assert!(workspace_dir
+        .join(".pao/tasks/release-0.1/task.yaml")
+        .exists());
+    assert!(workspace_dir
+        .join(".pao/tasks/release-0.1/sessions")
+        .exists());
+    assert!(workspace_dir
+        .join(".pao/tasks/release-0.1/command-log")
+        .exists());
+
     let _ = fs::remove_dir_all(workspace_dir);
     let _ = fs::remove_dir_all(config_dir);
     let _ = fs::remove_dir_all(remote_dir);
