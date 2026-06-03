@@ -195,3 +195,28 @@ fn workspace_missing_error_includes_stable_code() {
     let _ = fs::remove_dir_all(workspace_dir);
     let _ = fs::remove_dir_all(config_dir);
 }
+
+#[test]
+fn client_add_rejects_shell_control_operator_commands() {
+    let workspace_dir = temp_dir("pao-cli-client-invalid-workspace");
+    let config_dir = temp_dir("pao-cli-client-invalid-config");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_pao"))
+        .args([
+            "client",
+            "add",
+            "unsafe",
+            "--command",
+            "codex && rm -rf target",
+        ])
+        .current_dir(&workspace_dir)
+        .env("PAO_CONFIG_HOME", &config_dir)
+        .output()
+        .expect("pao client add should run");
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("PAO-1202"));
+
+    let _ = fs::remove_dir_all(workspace_dir);
+    let _ = fs::remove_dir_all(config_dir);
+}
