@@ -30,6 +30,41 @@ pao client list
 pao client set-default <name>
 ```
 
+## 설치
+
+v0.1.0 개발 빌드는 로컬 checkout에서 설치합니다.
+
+```bash
+cargo install --path .
+```
+
+## 기본 사용
+
+```bash
+pao init
+pao repo add app --remote <git-url> --branch main
+pao client add codex --command codex
+pao chat --repo app --prompt "작은 변경을 만들어줘"
+pao doctor
+```
+
+`pao chat`은 AI client 실행 전에 `.pao/sessions/<session-id>/` 아래에 baseline과 approval artifact를 준비합니다.
+
+## 검증
+
+의미 있는 PR을 열거나 갱신하기 전에 다음 명령을 실행합니다.
+
+```bash
+cargo fmt --check
+cargo check
+cargo test
+cargo clippy --all-targets -- -D warnings
+```
+
+## 에러 코드
+
+PAO는 안정적인 에러 코드와 사람이 읽을 수 있는 메시지를 함께 출력합니다. 자세한 목록은 [docs/error-codes.md](docs/error-codes.md)를 봅니다.
+
 ## 버전 관리
 
 첫 개발 라인은 `v0`로 둡니다. PAO는 Semantic Versioning과 `vX.Y.Z` Git tag를 사용하고, 릴리즈 범위는 GitHub milestone으로 추적합니다.
