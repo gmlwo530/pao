@@ -55,6 +55,7 @@ impl Workspace {
         fs::create_dir_all(pao_dir.join("repos")).map_err(PaoError::io)?;
         fs::create_dir_all(pao_dir.join("tasks")).map_err(PaoError::io)?;
         fs::create_dir_all(pao_dir.join("sessions")).map_err(PaoError::io)?;
+        fs::create_dir_all(pao_dir.join("command-log")).map_err(PaoError::io)?;
         fs::create_dir_all(root.join("repos")).map_err(PaoError::io)?;
 
         let workspace = Self {
@@ -180,6 +181,10 @@ impl Workspace {
         self.root.join("repos").join(name)
     }
 
+    pub fn pao_dir(&self) -> PathBuf {
+        self.root.join(WORKSPACE_DIR)
+    }
+
     fn save(&self) -> Result<(), PaoError> {
         let workspace_path = self.root.join(WORKSPACE_DIR).join(WORKSPACE_FILE);
         let content = serde_yaml::to_string(&self.file).map_err(PaoError::serialization)?;
@@ -203,6 +208,8 @@ mod tests {
         assert!(temp_dir.path().join(".pao/workspace.yaml").exists());
         assert!(temp_dir.path().join(".pao/repos").exists());
         assert!(temp_dir.path().join("repos").exists());
+        assert!(temp_dir.path().join(".pao/sessions").exists());
+        assert!(temp_dir.path().join(".pao/command-log").exists());
     }
 
     #[test]

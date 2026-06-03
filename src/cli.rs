@@ -18,6 +18,11 @@ pub enum Commands {
     },
     /// Synchronize registered repository metadata.
     Sync,
+    /// Manage workspace tasks.
+    Task {
+        #[command(subcommand)]
+        command: TaskCommand,
+    },
     /// Start an AI client session for a registered repository.
     Chat(ChatArgs),
     /// Manage local AI client commands.
@@ -60,6 +65,17 @@ pub struct RepoRemoveArgs {
 #[derive(Debug, Args)]
 pub struct RepoStatusArgs {
     pub name: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TaskCommand {
+    /// Create a task in the current workspace.
+    Create(TaskCreateArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct TaskCreateArgs {
+    pub task_id: String,
 }
 
 #[derive(Debug, Args)]

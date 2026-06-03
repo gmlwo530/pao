@@ -16,6 +16,9 @@ pub enum ErrorCode {
     ConfigInvalid,
     ClientInvalid,
     ClientMissing,
+    TaskInvalid,
+    TaskExists,
+    TaskMissing,
     Io,
     Serialization,
 }
@@ -36,6 +39,9 @@ impl ErrorCode {
             Self::ConfigInvalid => "PAO-1201",
             Self::ClientInvalid => "PAO-1202",
             Self::ClientMissing => "PAO-1203",
+            Self::TaskInvalid => "PAO-1301",
+            Self::TaskExists => "PAO-1302",
+            Self::TaskMissing => "PAO-1303",
             Self::Io => "PAO-9001",
             Self::Serialization => "PAO-9002",
         }
@@ -54,7 +60,10 @@ impl ErrorCode {
             | Self::RepositoryCheckoutExists
             | Self::ConfigInvalid
             | Self::ClientInvalid
-            | Self::ClientMissing => 2,
+            | Self::ClientMissing
+            | Self::TaskInvalid
+            | Self::TaskExists
+            | Self::TaskMissing => 2,
             Self::GitCommandFailed | Self::Io | Self::Serialization => 1,
         }
     }
